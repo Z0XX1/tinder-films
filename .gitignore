@@ -6,3 +6,6 @@ __pycache__/
 *.py[cod]
 .DS_Store
 Thumbs.db
+instance/
+*.sqlite3
+*.sqlite3-*
