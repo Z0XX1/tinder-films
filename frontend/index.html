@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f7f2">
+  <meta name="description" content="Меньше поисков, больше хорошего кино. Выбирай фильмы и собирай свою коллекцию в КиноТиндере.">
+  <title>КиноТиндер — кино по любви</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%237354d2'/%3E%3Cpath d='M20 29 9 18C3 9 16 5 20 13c4-8 17-4 11 5Z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="api.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <!-- Небольшой набор SVG-иконок: без библиотек и внешних запросов. -->
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="7" y="5" width="13" height="16" rx="3"/><path d="M15 2H7a3 3 0 0 0-3 3v11m8-6 4 3-4 3Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 5-7 7 7 7M5 12h15"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="m12 5 7 7-7 7M19 12H4"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m14 3 2.7 6.3L23 12l-6.3 2.7L14 21l-2.7-6.3L5 12l6.3-2.7ZM5 2v6M2 5h6M4 17v5M1.5 19.5h5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 6.1A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.9"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M7 12h10"/></symbol>
+  </svg>
+
+  <aside class="sidebar">
+    <a class="brand" href="#discover" aria-label="КиноТиндер — на главную">
+      <span class="brand-mark"><svg class="icon"><use href="#i-heart"/></svg><span class="brand-spark">✦</span></span>
+      <span>КиноТиндер<span class="brand-caption">кино по любви</span></span>
+    </a>
+
+    <nav class="navigation" aria-label="Главная навигация">
+      <span class="nav-caption">ТВОЯ КИНОТЕКА</span>
+      <button class="nav-button is-active" data-screen="discover" aria-current="page">
+        <svg class="icon"><use href="#i-cards"/></svg><span>Найти фильм</span><span class="nav-active-dot"></span>
+      </button>
+      <button class="nav-button" data-screen="favorites">
+        <svg class="icon"><use href="#i-heart"/></svg><span>Избранное</span><span class="nav-count" id="favorite-count">0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-note">
+      <span class="note-illustration" aria-hidden="true">✳</span>
+      <h2>Тот самый фильм<br>обязательно найдётся.</h2>
+      <p>Доверься первому впечатлению.<br>Хорошее кино ближе, чем кажется.</p>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <span class="topbar-label">МЕНЬШЕ ПОИСКА. БОЛЬШЕ КИНО.</span>
+      <span class="solo-badge"><span></span>Только ты и хорошее кино</span>
+    </header>
+
+    <section id="discover-screen" aria-labelledby="discover-title">
+      <div class="page-heading">
+        <div><p class="eyebrow">ТВОЙ ЛИЧНЫЙ КИНОВЕЧЕР</p><h1 id="discover-title">Что посмотрим <span>сегодня?</span></h1><p class="page-description">Один фильм, одно решение. Найди то, что откликнется тебе.</p></div>
+        <svg class="heading-art" viewBox="0 0 130 100" fill="none" aria-hidden="true">
+          <rect x="27" y="15" width="65" height="76" rx="10" transform="rotate(-13 27 15)" fill="#e8e3f2"/>
+          <rect x="44" y="8" width="65" height="76" rx="10" transform="rotate(10 44 8)" fill="#faf9f5" stroke="#b5a4d7" stroke-width="1.5"/>
+          <path d="m58 25 43 8M52 64l43 8" stroke="#b5a4d7" stroke-width="1.5" stroke-dasharray="4 4"/>
+          <path d="M74 43c-5-9-16-1-9 6l8 9 11-7c9-6 0-17-10-8Z" fill="#8060c6"/>
+          <path d="m116 8 2 6 6 2-6 2-2 6-2-6-6-2 6-2ZM17 58l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" fill="#b3a1cf"/>
+        </svg>
+      </div>
+
+      <div class="discovery-area">
+        <div class="deck-heading"><span><svg class="icon"><use href="#i-sparkles"/></svg>Может быть, это мэтч</span><div class="deck-position"><div class="progress-dots" id="progress-dots" aria-hidden="true"></div><span id="movie-position">— / —</span></div></div>
+
+        <div class="card-stage" id="card-stage" aria-busy="true">
+          <article class="movie-card" id="movie-card" aria-labelledby="movie-title" hidden>
+            <div class="poster-wrap"><img class="movie-poster" id="movie-poster" alt="" draggable="false"><span class="poster-badge"><svg class="icon"><use href="#i-film"/></svg>ВЫБОР НА ВЕЧЕР</span><span class="swipe-label" id="swipe-label" aria-hidden="true"></span></div>
+            <div class="movie-details">
+              <div class="movie-overline"><span></span>НОВАЯ ИСТОРИЯ ДЛЯ ТЕБЯ</div>
+              <h2 id="movie-title" aria-live="polite" aria-atomic="true"></h2>
+              <div class="movie-meta"><span id="movie-year"></span><span class="meta-separator">·</span><span>Полнометражный фильм</span></div>
+              <div class="genre-list" id="movie-genres"></div>
+              <div class="movie-rating"><span class="rating-value"><svg class="icon"><use href="#i-star"/></svg><strong id="movie-rating"></strong></span><span>Рейтинг Кинопоиска</span></div>
+              <p class="movie-description" id="movie-description"></p>
+              <div class="movie-footnote"><svg class="icon"><use href="#i-heart"/></svg><span>А вдруг это твой новый любимый фильм?</span></div>
+            </div>
+          </article>
+          <div class="empty-state" id="discovery-state" role="status"><span class="state-symbol"><svg class="icon"><use href="#i-film"/></svg></span><h2 id="state-title">Ищем твою следующую историю…</h2><p id="state-description">Кино уже на подходе.</p><div class="state-actions" id="state-actions"></div></div>
+        </div>
+
+        <div class="decision-area" id="decision-area" hidden>
+          <div class="decision-buttons"><button class="decision-button skip-button" id="skip-button"><svg class="icon"><use href="#i-x"/></svg>Пропустить<kbd>←</kbd></button><button class="decision-button like-button" id="like-button"><svg class="icon"><use href="#i-heart"/></svg>Нравится<kbd>→</kbd></button></div>
+        </div>
+      </div>
+
+      <div class="discovery-footer"><span><svg class="icon"><use href="#i-heart"/></svg>Сохраняй то, что зацепило</span><span class="footer-divider"></span><span>Возвращайся, когда захочется кино</span></div>
+    </section>
+
+    <section id="favorites-screen" aria-labelledby="favorites-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">ТВОЯ ЛИЧНАЯ КОЛЛЕКЦИЯ</p><h1 id="favorites-title">Кино <span>по любви.</span></h1><p class="page-description">Все твои «нравится» здесь. Осталось выбрать вечер.</p></div><span class="collection-icon"><svg class="icon"><use href="#i-heart"/></svg></span></div>
+      <div class="favorites-toolbar"><h2>Избранное <span id="collection-count">0</span></h2><button class="text-button" data-screen="discover">Продолжить поиск<svg class="icon"><use href="#i-arrow-right"/></svg></button></div>
+      <div class="favorites-grid" id="favorites-grid"></div>
+      <div class="empty-state favorites-empty" id="favorites-empty"><span class="state-symbol"><svg class="icon"><use href="#i-heart"/></svg></span><h2>Здесь начинается любовь к кино</h2><p>Нажми на сердечко у фильма, который зацепил.<br>Он будет ждать тебя здесь.</p><button class="primary-button" data-screen="discover">Найти свой фильм<svg class="icon"><use href="#i-arrow-right"/></svg></button></div>
+    </section>
+    <noscript><p class="noscript-message">Для выбора фильмов включи JavaScript в браузере.</p></noscript>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"><svg class="icon"><use id="toast-icon" href="#i-check"/></svg><span id="toast-message"></span></div>
+</body>
+</html>
