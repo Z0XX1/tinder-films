@@ -32,7 +32,7 @@ class AppTests(unittest.TestCase):
             result = self.client.get("/api/movies")
             call = session.return_value.__enter__.return_value.get.call_args
             self.assertEqual(call.args[0], "https://api.poiskkino.dev/v1.5/movie")
-            self.assertEqual(call.kwargs["params"]["limit"], 20)
+            self.assertEqual(call.kwargs["params"]["limit"], 50)
         self.assertEqual(result.status_code, 200)
         return result.json
 

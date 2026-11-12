@@ -21,8 +21,8 @@ async function request(path, options = {}) {
   return data;
 }
 
-async function getMovies() {
-  return request("/movies");
+async function getMovies(loadMore = false) {
+  return request(loadMore ? "/movies/next" : "/movies");
 }
 
 async function getFavorites() {

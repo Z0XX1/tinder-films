@@ -7,6 +7,8 @@
   const card = $("movie-card");
   let movies = [];
   let favorites = [];
+  const MAX_MOVIES = 500;
+  let hasMore = true;
   let currentIndex = 0;
   let currentScreen = "discover";
   let busy = false;
@@ -73,11 +75,15 @@
   }
 
   function renderProgress() {
+    const total = hasMore ? MAX_MOVIES : movies.length;
     const position = movies.length ? Math.min(currentIndex + 1, movies.length) : 0;
-    $("movie-position").textContent = `${String(position).padStart(2, "0")} / ${String(movies.length).padStart(2, "0")}`;
-    $("progress-dots").replaceChildren(...movies.map((movie, index) => {
+    $("movie-position").textContent = `${String(position).padStart(2, "0")} / ${total}`;
+    // Десять делений вместо сотен DOM-элементов.
+    const segments = Math.min(total, 10);
+    const active = Math.min(segments - 1, Math.floor(currentIndex / Math.max(total, 1) * segments));
+    $("progress-dots").replaceChildren(...Array.from({ length: segments }, (_, index) => {
       const dot = document.createElement("span");
-      dot.className = `progress-dot${index < currentIndex ? " is-past" : index === currentIndex ? " is-current" : ""}`;
+      dot.className = `progress-dot${index < active ? " is-past" : index === active ? " is-current" : ""}`;
       return dot;
     }));
   }
@@ -87,6 +93,12 @@
     if (!movies.length) {
       showState("Здесь скоро появится кино", "Подборка пока пуста. Попробуй обновить её чуть позже.", [
         stateButton("Обновить подборку", "refresh", "primary-button", loadData)
+      ]);
+      return;
+    }
+    if (currentIndex >= movies.length && hasMore) {
+      showState("Продолжим знакомство с кино?", "Следующая порция фильмов уже ждёт в API.", [
+        stateButton("Загрузить ещё", "refresh", "primary-button", loadMoreMovies)
       ]);
       return;
     }
@@ -133,6 +145,7 @@
         throw new Error("Неожиданный формат ответа сервера. Ожидается массив фильмов.");
       }
       movies = movieData;
+      hasMore = movies.length < MAX_MOVIES;
       favorites = favoriteData;
       currentIndex = 0;
       loaded = true;
@@ -151,9 +164,51 @@
     }
   }
 
+  async function fetchMoreAndRender() {
+    showState("Загружаем следующие фильмы…", "Новые истории скоро появятся на экране.");
+    try {
+      const batch = await getMovies(true);
+      if (!batch || !Array.isArray(batch.movies) || typeof batch.has_more !== "boolean") {
+        throw new Error("Неожиданный формат следующей порции фильмов.");
+      }
+      const known = new Set(movies.map(movie => String(movie.id)));
+      batch.movies.forEach(movie => {
+        if (!known.has(String(movie.id))) {
+          known.add(String(movie.id));
+          movies.push(movie);
+        }
+      });
+      hasMore = batch.has_more;
+      renderMovie();
+    } catch (error) {
+      showState("Не получилось загрузить следующую порцию", error.message, [
+        stateButton("Попробовать ещё раз", "refresh", "primary-button", loadMoreMovies),
+        stateButton("Моё избранное", "heart", "secondary-button", () => { window.location.hash = "favorites"; })
+      ]);
+    }
+  }
+
+  async function loadMoreMovies() {
+    if (busy) return;
+    setBusy(true);
+    try { await fetchMoreAndRender(); }
+    finally { setBusy(false); }
+  }
+
   async function animateCard(keyframes, duration) {
     if (reducedMotion.matches) return;
-    await card.animate(keyframes, { duration, easing: "cubic-bezier(.2,.7,.3,1)" }).finished;
+    const animation = card.animate(keyframes, { duration, easing: "cubic-bezier(.2,.7,.3,1)" });
+    let timer;
+    try {
+      // В фоновой вкладке браузер может приостановить анимацию.
+      await Promise.race([
+        animation.finished,
+        new Promise(resolve => { timer = setTimeout(resolve, duration + 150); })
+      ]);
+    } finally {
+      clearTimeout(timer);
+      animation.cancel();
+    }
   }
 
   async function chooseMovie(like) {
@@ -178,7 +233,8 @@
       ], 220);
       currentIndex++;
       resetDrag();
-      renderMovie();
+      if (currentIndex >= movies.length && hasMore) await fetchMoreAndRender();
+      else renderMovie();
       if (!card.hidden) await animateCard([
         { opacity: 0, transform: `translateX(${-direction * 25}px) scale(.99)` },
         { opacity: 1, transform: "translateX(0) scale(1)" }

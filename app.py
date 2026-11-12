@@ -12,6 +12,8 @@ from flask import Flask, current_app, g, jsonify, request
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 POISKKINO_URL = "https://api.poiskkino.dev/v1.5"
+BATCH_SIZE = 50
+MAX_MOVIES = 500
 
 
 class APIError(Exception):
@@ -45,14 +47,21 @@ def poiskkino_get(session, path, **params):
 
 
 def import_movies():
+    db = get_db()
+    count = db.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+    state = db.execute("SELECT next_cursor, exhausted FROM catalog_state WHERE id = 1").fetchone()
+    if count >= MAX_MOVIES or state["exhausted"]:
+        return []
     key = current_app.config["POISKKINO_API_KEY"]
     if not key:
         raise APIError("Добавь POISKKINO_API_KEY в файл .env и перезапусти Flask.", 503)
+    params = dict(limit=BATCH_SIZE, type="movie", sortField="votes.kp", sortType="-1")
+    if state["next_cursor"]:
+        params["next"] = state["next_cursor"]
     movies = []
     with requests.Session() as session:
         session.headers.update({"X-API-KEY": key, "Accept": "application/json"})
-        collection = poiskkino_get(session, "/movie", page=1, limit=20,
-                                    type="movie", sortField="votes.kp", sortType="-1")
+        collection = poiskkino_get(session, "/movie", **params)
         items = collection.get("docs")
         if not isinstance(items, list):
             raise APIError("ПоискКино API вернул неожиданный формат подборки.")
@@ -70,12 +79,23 @@ def import_movies():
                 "poster": poster.get("url") or poster.get("previewUrl") or "",
                 "description": film.get("shortDescription") or film.get("description") or "Описание пока недоступно."
             })
-    # Одна транзакция: сбой API не оставляет частично загруженный каталог.
-    db = get_db()
+    next_cursor = collection.get("next")
+    has_next = collection.get("hasNext", bool(next_cursor))
+    if has_next and (not isinstance(next_cursor, str) or not next_cursor or next_cursor == state["next_cursor"]):
+        raise APIError("ПоискКино API не вернул корректный курсор следующей страницы.")
+    # Фильмы и курсор сохраняются вместе. Ошибка не пропускает страницу.
+    added = []
     with db:
-        db.executemany("INSERT OR IGNORE INTO movies (id, data) VALUES (?, ?)",
-                       [(movie["id"], json.dumps(movie, ensure_ascii=False)) for movie in movies])
-    return movies
+        for movie in movies:
+            if count + len(added) >= MAX_MOVIES:
+                break
+            inserted = db.execute("INSERT OR IGNORE INTO movies (id, data) VALUES (?, ?)",
+                                  (movie["id"], json.dumps(movie, ensure_ascii=False)))
+            if inserted.rowcount:
+                added.append(movie)
+        db.execute("UPDATE catalog_state SET next_cursor = ?, exhausted = ? WHERE id = 1",
+                   (next_cursor if has_next else None, int(not has_next)))
+    return added
 
 
 def create_app(test_config=None):
@@ -103,6 +123,12 @@ def create_app(test_config=None):
                 id INTEGER PRIMARY KEY,
                 data TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS catalog_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                next_cursor TEXT,
+                exhausted INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT OR IGNORE INTO catalog_state (id) VALUES (1);
             CREATE TABLE IF NOT EXISTS favorites (
                 movie_id INTEGER PRIMARY KEY REFERENCES movies(id) ON DELETE CASCADE,
                 added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -128,6 +154,16 @@ def create_app(test_config=None):
             rows = get_db().execute("SELECT data FROM movies ORDER BY id").fetchall()
             data = [json.loads(row["data"]) for row in rows] if rows else import_movies()
         return jsonify(data)
+
+    @app.get("/api/movies/next")
+    def next_movies():
+        with import_lock:
+            added = import_movies()
+            db = get_db()
+            total = db.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+            exhausted = db.execute("SELECT exhausted FROM catalog_state WHERE id = 1").fetchone()[0]
+        return jsonify(movies=added, has_more=not exhausted and total < MAX_MOVIES,
+                       total=total, limit=MAX_MOVIES)
 
     @app.get("/api/favorites")
     def favorites():
